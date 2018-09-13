@@ -517,6 +517,11 @@ void sunxi_board_init(void)
 {
 	int power_failed = 0;
 
+#ifdef CONFIG_MACH_SUN8I_H3
+	/* turn on power LED (PL10) on H3 boards */
+	gpio_direction_output(SUNXI_GPL(10), 1);
+#endif
+
 #ifdef CONFIG_SY8106A_POWER
 	power_failed = sy8106a_set_vout1(CONFIG_SY8106A_VOUT1_VOLT);
 #endif
@@ -720,6 +725,74 @@ static void setup_environment(const void *fdt)
 	}
 }
 
+#if defined(CONFIG_BOOT_PROCESS_MULTI_DTB) && !defined(CONFIG_SPL_BUILD)
+
+#define NP_NEO2_DT_SS			"nanopi-neo2."
+
+#define NP_NEO2_DT_EXT_V1_1		"-v1.1.dtb"
+
+#define NP_NEO2_BOARD_ID_GPIO		"PL3"
+#define NP_NEO2_BOARD_ID_1_0		1
+#define NP_NEO2_BOARD_ID_1_1		0
+
+void boot_process_multi_dtb(void)
+{
+	const char *fdtfile = env_get("fdtfile");
+	if (fdtfile == NULL) {
+		return;
+	}
+
+	/* check for a NanoPi NEO2 */
+	if (strstr(fdtfile, NP_NEO2_DT_SS) != NULL) {
+		int board_id_pin, prev_cfg, ret, rev_1_1;
+
+		/* NEO2 DT found; process board revision and select corresponding DT */
+
+		board_id_pin = sunxi_name_to_gpio(NP_NEO2_BOARD_ID_GPIO);
+		if (board_id_pin < 0) {
+			return;
+		}
+
+		ret = gpio_request(board_id_pin, "board_id_pin");
+		if (ret) {
+			return;
+		}
+
+		prev_cfg = sunxi_gpio_get_cfgpin(board_id_pin);
+
+		gpio_direction_input(board_id_pin);
+		sunxi_gpio_set_pull(board_id_pin, SUNXI_GPIO_PULL_DISABLE);
+
+		mdelay(2);
+
+		rev_1_1 = gpio_get_value(board_id_pin) == NP_NEO2_BOARD_ID_1_1;
+
+		sunxi_gpio_set_cfgpin(board_id_pin, prev_cfg);
+		gpio_free(board_id_pin);
+
+		printf("NanoPi NEO2 v1.%d detected\n", rev_1_1);
+
+		if (rev_1_1) {
+			int ddt_len = sizeof(CONFIG_DEFAULT_DEVICE_TREE);
+			int fdt_len = strlen(fdtfile);
+
+			char *n_fdtfile = (char *)malloc(max(fdt_len, ddt_len) + sizeof(NP_NEO2_DT_EXT_V1_1) + 1);
+			if (n_fdtfile != NULL) {
+				char *cp = strstr(strcpy(n_fdtfile, fdtfile), CONFIG_DEFAULT_DEVICE_TREE);
+				if (cp != NULL) {
+					cp[ddt_len - 1] = '\0';
+					strcat(cp, NP_NEO2_DT_EXT_V1_1);
+
+					env_set("fdtfile", n_fdtfile);
+				}
+
+				free(n_fdtfile);
+			}
+		}
+	}
+}
+#endif
+
 int misc_init_r(void)
 {
 	__maybe_unused int ret;
@@ -753,6 +826,10 @@ int misc_init_r(void)
 	usb_ether_init();
 #endif
 
+#if defined(CONFIG_BOOT_PROCESS_MULTI_DTB) && !defined(CONFIG_SPL_BUILD)
+	boot_process_multi_dtb();
+#endif
+
 	return 0;
 }
 
@@ -761,10 +838,12 @@ int ft_board_setup(void *blob, bd_t *bd)
 	int __maybe_unused r;
 
 	/*
-	 * Call setup_environment again in case the boot fdt has
-	 * ethernet aliases the u-boot copy does not have.
+	 * Call setup_environment and fdt_fixup_ethernet again
+	 * in case the boot fdt has ethernet aliases the u-boot
+	 * copy does not have.
 	 */
 	setup_environment(blob);
+	fdt_fixup_ethernet(blob);
 
 #ifdef CONFIG_VIDEO_DT_SIMPLEFB
 	r = sunxi_simplefb_setup(blob);

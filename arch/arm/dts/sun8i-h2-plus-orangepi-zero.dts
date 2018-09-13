@@ -99,6 +99,10 @@
 	status = "okay";
 };
 
+&ehci2 {
+	status = "okay";
+};
+
 &emac {
 	phy-handle = <&int_mii_phy>;
 	phy-mode = "mii";
@@ -135,6 +139,10 @@
 };
 
 &ohci1 {
+	status = "okay";
+};
+
+&ohci2 {
 	status = "okay";
 };
 

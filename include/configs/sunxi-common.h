@@ -285,6 +285,16 @@ extern int soft_i2c_gpio_scl;
 
 #endif /* CONFIG_VIDEO_SUNXI */
 
+#if defined CONFIG_VIDEO || defined CONFIG_DM_VIDEO
+#define CONFIG_VIDEO_LOGO
+#define CONFIG_SPLASH_SCREEN
+#define CONFIG_SPLASH_SCREEN_ALIGN
+#define CONFIG_BMP_16BPP
+#define CONFIG_BMP_24BPP
+#define CONFIG_BMP_32BPP
+#define CONFIG_VIDEO_BMP_RLE8
+#endif
+
 /* Ethernet support */
 #ifdef CONFIG_SUN4I_EMAC
 #define CONFIG_MII			/* MII PHY management		*/
@@ -446,7 +456,7 @@ extern int soft_i2c_gpio_scl;
 
 #ifdef CONFIG_USB_KEYBOARD
 #define CONSOLE_STDIN_SETTINGS \
-	"preboot=usb start\0" \
+	"preboot=run loadsplash; usb start\0" \
 	"stdin=serial,usbkbd\0"
 #else
 #define CONSOLE_STDIN_SETTINGS \
@@ -506,6 +516,12 @@ extern int soft_i2c_gpio_scl;
 #define FDTFILE CONFIG_DEFAULT_DEVICE_TREE ".dtb"
 #endif
 
+#ifdef CONFIG_MACH_SUN8I_H3
+#define INITRD_HIGH_ENV "initrd_high=0xFFFFFFFF\0"
+#else
+#define INITRD_HIGH_ENV
+#endif
+
 #define CONFIG_EXTRA_ENV_SETTINGS \
 	CONSOLE_ENV_SETTINGS \
 	MEM_LAYOUT_ENV_SETTINGS \
@@ -518,7 +534,8 @@ extern int soft_i2c_gpio_scl;
 	"uuid_gpt_system=" UUID_GPT_SYSTEM "\0" \
 	"partitions=" PARTS_DEFAULT "\0" \
 	BOOTCMD_SUNXI_COMPAT \
-	BOOTENV
+	BOOTENV \
+	INITRD_HIGH_ENV
 
 #else /* ifndef CONFIG_SPL_BUILD */
 #define CONFIG_EXTRA_ENV_SETTINGS

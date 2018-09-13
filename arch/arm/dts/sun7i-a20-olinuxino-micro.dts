@@ -95,7 +95,7 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_mii_a>;
+	pinctrl-0 = <&gmac_pins_mii_a>,<&gmac_txerr>;
 	phy = <&phy1>;
 	phy-mode = "mii";
 	status = "okay";
@@ -226,6 +226,13 @@
 };
 
 &pio {
+	gmac_txerr: gmac_txerr@0 {
+		allwinner,pins = "PA17";
+		allwinner,function = "gmac";
+		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
+		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+	};
+
 	mmc3_cd_pin_olinuxinom: mmc3_cd_pin@0 {
 		allwinner,pins = "PH11";
 		allwinner,function = "gpio_in";

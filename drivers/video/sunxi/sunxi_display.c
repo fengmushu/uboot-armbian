@@ -1121,8 +1121,12 @@ void *video_hw_init(void)
 		ret = sunxi_hdmi_hpd_detect(hpd_delay);
 		if (ret) {
 			printf("HDMI connected: ");
-			if (edid && sunxi_hdmi_edid_get_mode(&custom) == 0)
-				mode = &custom;
+			if (edid && sunxi_hdmi_edid_get_mode(&custom) == 0) {
+				if ((custom.xres <= 1920) && (custom.yres <= 1080))
+					mode = &custom;
+				else
+					mode = &res_mode_init[RES_MODE_1920x1080];
+			}
 		} else if (hpd) {
 			sunxi_hdmi_shutdown();
 			sunxi_display.monitor = sunxi_get_default_mon(false);

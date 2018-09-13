@@ -59,6 +59,10 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	memory {
+		reg = <0x40000000 0x40000000>;
+	};
+
 	reg_vcc3v3: vcc3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3";
@@ -72,6 +76,9 @@
 };
 
 &mmc0 {
+	compatible = "allwinner,sun50i-h5-mmc",
+		     "allwinner,sun50i-a64-mmc",
+		     "allwinner,sun5i-a13-mmc";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin>;
 	vmmc-supply = <&reg_vcc3v3>;
