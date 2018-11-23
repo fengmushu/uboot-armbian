@@ -43,8 +43,8 @@
 #include "sun8i-h3-nanopi.dtsi"
 
 / {
-	model = "FriendlyArm NanoPi M1";
-	compatible = "friendlyarm,nanopi-m1", "allwinner,sun8i-h3";
+	model = "QPT VDIH3v1";
+	compatible = "QPT,VDIH3v1", "allwinner,sun8i-h3";
 };
 
 &emac {
