@@ -47,6 +47,24 @@
 #include <part.h>
 #include <usb.h>
 
+#include <led.h>
+void qpt_leds_blink(int i)
+{
+	struct udevice *dev;
+	char buff[16];
+	int res;
+
+	snprintf(buff, sizeof(buff), "QPT:LED%d", (i%4+2));
+	res = led_get_by_label(buff, &dev);
+	if(res) {
+		printf("%s: Failed to get %s\n", __func__, buff);
+		return;
+	}
+
+	res = (led_get_state(dev) == LEDST_OFF) ? LEDST_ON : LEDST_OFF;
+	led_set_state(dev, res);
+}
+
 #undef BBB_COMDAT_TRACE
 #undef BBB_XPORT_TRACE
 
@@ -279,6 +297,7 @@ static int usb_stor_probe_device(struct usb_device *udev)
 			part_init(blkdev);
 			debug("partype: %d\n", blkdev->part_type);
 			usb_max_devs++;
+			qpt_leds_blink(usb_max_devs);
 			debug("%s: Found device %p\n", __func__, udev);
 		}
 	}

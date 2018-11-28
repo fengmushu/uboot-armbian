@@ -45,6 +45,31 @@
 / {
 	model = "QPT VDIH3v1";
 	compatible = "QPT,VDIH3v1", "allwinner,sun8i-h3";
+
+        leds {
+		compatible = "gpio-leds";
+
+		led2 {
+			label = "QPT:LED2"; /* PA15 */
+			gpios = <&pio 0 15 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+		};
+
+		led3 {
+			label = "QPT:LED3"; /* PE0 */
+			gpios = <&pio 4 0 GPIO_ACTIVE_LOW>;
+		};
+
+		led4 {
+			label = "QPT:LED4"; /* PE1 */
+			gpios = <&pio 4 1 GPIO_ACTIVE_LOW>;
+		};
+
+		led5 {
+			label = "QPT:LED5"; /* PE11 */
+			gpios = <&pio 4 1 GPIO_ACTIVE_LOW>;
+		};
+	};
 };
 
 &emac {

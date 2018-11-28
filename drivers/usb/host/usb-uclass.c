@@ -200,6 +200,7 @@ int usb_stop(void)
 	return err;
 }
 
+extern void qpt_leds_blink(int i);
 static void usb_scan_bus(struct udevice *bus, bool recurse)
 {
 	struct usb_bus_priv *priv;
@@ -217,8 +218,10 @@ static void usb_scan_bus(struct udevice *bus, bool recurse)
 		printf("failed, error %d\n", ret);
 	else if (priv->next_addr == 0)
 		printf("No USB Device found\n");
-	else
+	else {
+		qpt_leds_blink(bus->seq);
 		printf("%d USB Device(s) found\n", priv->next_addr);
+	}
 }
 
 static void remove_inactive_children(struct uclass *uc, struct udevice *bus)
