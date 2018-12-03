@@ -696,7 +696,7 @@ int dw_hdmi_read_edid(struct dw_hdmi *hdmi, u8 *buf, int buf_size)
 	} else {
 		ret = hdmi_read_edid(hdmi, 0, buf);
 		if (ret) {
-			debug("failed to read edid.\n");
+			printf("%s: Failed to read edid.\n", __func__);
 			return -1;
 		}
 
@@ -706,6 +706,7 @@ int dw_hdmi_read_edid(struct dw_hdmi *hdmi, u8 *buf, int buf_size)
 		}
 	}
 
+	edid_print_info((struct edid1_info *)buf);
 	return edid_size;
 }
 
