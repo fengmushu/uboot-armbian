@@ -67,7 +67,7 @@
 
 		led5 {
 			label = "QPT:LED5"; /* PE11 */
-			gpios = <&pio 4 1 GPIO_ACTIVE_LOW>;
+			gpios = <&pio 4 11 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
