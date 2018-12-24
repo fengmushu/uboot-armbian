@@ -572,7 +572,7 @@ CONFIG_CMD_BMP=y
 # CONFIG_CMD_BKOPS_ENABLE is not set
 # CONFIG_CMD_CACHE is not set
 # CONFIG_CMD_DISPLAY is not set
-# CONFIG_CMD_LED is not set
+CONFIG_CMD_LED=y
 # CONFIG_CMD_DATE is not set
 # CONFIG_CMD_TIME is not set
 # CONFIG_CMD_GETTIME is not set

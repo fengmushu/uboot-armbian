@@ -470,7 +470,7 @@ extern int soft_i2c_gpio_scl;
 #elif CONFIG_DM_VIDEO
 #define CONFIG_SYS_WHITE_ON_BLACK
 #define CONSOLE_STDOUT_SETTINGS \
-	"stdout=serial,vidconsole\0" \
+	"stdout=serial\0" \
 	"stderr=serial,vidconsole\0"
 #else
 #define CONSOLE_STDOUT_SETTINGS \
