@@ -13,6 +13,7 @@
 #include <menu.h>
 #include <post.h>
 #include <u-boot/sha256.h>
+#include <asm/gpio.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -26,6 +27,72 @@ DECLARE_GLOBAL_DATA_PTR;
 
 /* Stored value of bootdelay, used by autoboot_command() */
 static int stored_bootdelay;
+static int key_pressed = 0;
+#define GPIO_RESET_KEY "PL3"
+
+static int __check_keypressed(void)
+{
+	int n;
+	unsigned int gpio;
+
+	if(key_pressed)
+		return key_pressed;
+
+	n = gpio_lookup_name(GPIO_RESET_KEY, NULL, NULL, &gpio);
+	if(n) {
+		printf("%s: GPIO not found %s\n", __FUNCTION__, GPIO_RESET_KEY);
+		return 0;
+	}
+
+	n = gpio_request(gpio, "boot-emergency");
+	if(n<0) {
+		printf("%s: request %s failed\n", __FUNCTION__, GPIO_RESET_KEY);
+		return 0;
+	}
+
+	gpio_direction_input(gpio);
+	n =	gpio_get_value(gpio); //PL3
+	if(n >= 0) { // PRESSED = 0
+		key_pressed = !n;
+	}
+
+	if(key_pressed)
+		printf("%s: key pressed %d\n", __FUNCTION__, key_pressed);
+
+	gpio_free(gpio);
+	return key_pressed;
+}
+
+static int __emergency(void)
+{
+	/*
+	* check gpio key status
+	*/
+	printf("%s: check if emergency\n", __FUNCTION__);
+	if(!key_pressed) {
+		return 0;
+	}
+
+	/*
+		write 0x42000000 $BOARD/zImage 		//2048
+		write 0x43000000 $BOARD/script.bin 	//1024
+		write 0x43300000 $BOARD/uInitrd		//16348
+		write 0x43100000 $BOARD/boot.scr	//1152
+
+		rootfs.bin: 16M 0x8000@0xd000
+		script.bin: 1M@128K
+		boot-scr.bin: 1M + 128K@128K
+		kernel.bin: 2M + 0x1000@0x7000
+	*/
+	printf("Boot into emergency mode...\n");
+
+	env_set("emergency_boot", "mmc dev 1 && " \
+						"mmc read ${fdt_addr_r} 0x0800 0x100 && " \
+						"mmc read ${scriptaddr} 0x0900 0x100 && " \
+						"mmc read ${ramdisk_addr_r} 0x8000 0xd000 && " \
+						"mmc read ${kernel_addr_r} 0x1000 0x7000");
+	return 1;
+}
 
 #if defined(CONFIG_AUTOBOOT_KEYED)
 #if defined(CONFIG_AUTOBOOT_STOP_STR_SHA256)
@@ -193,6 +260,7 @@ static int __abortboot(int bootdelay)
 	 */
 	printf(CONFIG_AUTOBOOT_PROMPT, bootdelay);
 #  endif
+	__check_keypressed();
 
 	abort = passwd_abort(etime);
 	if (!abort)
@@ -343,6 +411,7 @@ void autoboot_command(const char *s)
 	debug("### main_loop: bootcmd=\"%s\"\n", s ? s : "<UNDEFINED>");
 
 	if (stored_bootdelay != -1 && s && !abortboot(stored_bootdelay)) {
+		__emergency();
 #if defined(CONFIG_AUTOBOOT_KEYED) && !defined(CONFIG_AUTOBOOT_KEYED_CTRLC)
 		int prev = disable_ctrlc(1);	/* disable Control C checking */
 #endif
@@ -353,6 +422,7 @@ void autoboot_command(const char *s)
 		disable_ctrlc(prev);	/* restore Control C checking */
 #endif
 	}
+
 
 #ifdef CONFIG_MENUKEY
 	if (menukey == CONFIG_MENUKEY) {

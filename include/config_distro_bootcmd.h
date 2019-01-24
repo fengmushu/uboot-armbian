@@ -402,6 +402,7 @@
 	BOOT_TARGET_DEVICES(BOOTENV_DEV)                                  \
 	\
 	"distro_bootcmd=" BOOTENV_SET_SCSI_NEED_INIT                      \
+		"run emergency_boot && source ${scriptaddr};" \
 		"for target in ${boot_targets}; do "                      \
 			"run bootcmd_${target}; "                         \
 		"done\0"
