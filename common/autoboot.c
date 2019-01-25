@@ -14,6 +14,7 @@
 #include <post.h>
 #include <u-boot/sha256.h>
 #include <asm/gpio.h>
+#include <fs.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -27,16 +28,37 @@ DECLARE_GLOBAL_DATA_PTR;
 
 /* Stored value of bootdelay, used by autoboot_command() */
 static int stored_bootdelay;
-static int key_pressed = 0;
 #define GPIO_RESET_KEY "PL3"
+typedef enum {
+	EMC_NORMAL_BOOT = 0,
+	EMC_KEY_PRESSED,
+	EMC_SOFT_RECOVERY,
+	EMC_MAN_RECOVERY,
+} emergency_t;
+static emergency_t emergency_boot = EMC_NORMAL_BOOT;
 
-static int __check_keypressed(void)
+static int __mmc_recovery_flag(void)
+{
+	int n = file_exists("mmc", "1:3", "/.auto_recovery", FS_TYPE_ANY);
+	if(n>=0) {
+		return n;
+	}
+	return 0;
+}
+
+static int __emergency_trigger(void)
 {
 	int n;
 	unsigned int gpio;
 
-	if(key_pressed)
-		return key_pressed;
+	if(emergency_boot)
+		return emergency_boot;
+
+	if(__mmc_recovery_flag()) {
+		emergency_boot = EMC_SOFT_RECOVERY;
+		printf("%s: found mmc boot recovery flags\n", __FUNCTION__);
+		return emergency_boot;
+	}
 
 	n = gpio_lookup_name(GPIO_RESET_KEY, NULL, NULL, &gpio);
 	if(n) {
@@ -53,23 +75,25 @@ static int __check_keypressed(void)
 	gpio_direction_input(gpio);
 	n =	gpio_get_value(gpio); //PL3
 	if(n >= 0) { // PRESSED = 0
-		key_pressed = !n;
+		emergency_boot = (!n ? EMC_KEY_PRESSED : EMC_NORMAL_BOOT);
 	}
 
-	if(key_pressed)
-		printf("%s: key pressed %d\n", __FUNCTION__, key_pressed);
+	if(emergency_boot)
+		printf("%s: key pressed %d\n", __FUNCTION__, emergency_boot);
 
 	gpio_free(gpio);
-	return key_pressed;
+	return emergency_boot;
 }
 
 static int __emergency(void)
 {
+	char buff[128];
+
 	/*
 	* check gpio key status
 	*/
-	printf("%s: check if emergency\n", __FUNCTION__);
-	if(!key_pressed) {
+	printf("%s: check if emergency.\n", __FUNCTION__);
+	if(emergency_boot == EMC_NORMAL_BOOT) {
 		return 0;
 	}
 
@@ -85,6 +109,14 @@ static int __emergency(void)
 		kernel.bin: 2M + 0x1000@0x7000
 	*/
 	printf("Boot into emergency mode...\n");
+
+	snprintf(buff, sizeof(buff), "earlyprintk=ttyS0,115200 " \
+						"console=ttyS0,115200 " \
+						"console=tty1 " \
+						"panic=10 " \
+						"emergency_type=%u ", emergency_boot);
+
+	env_set("bootargs", buff);
 
 	env_set("emergency_boot", "mmc dev 1 && " \
 						"mmc read ${fdt_addr_r} 0x0800 0x100 && " \
@@ -260,7 +292,7 @@ static int __abortboot(int bootdelay)
 	 */
 	printf(CONFIG_AUTOBOOT_PROMPT, bootdelay);
 #  endif
-	__check_keypressed();
+	__emergency_trigger();
 
 	abort = passwd_abort(etime);
 	if (!abort)
@@ -333,6 +365,11 @@ static int abortboot(int bootdelay)
 	if (abort)
 		gd->flags &= ~GD_FLG_SILENT;
 #endif
+
+	if(abort) {
+		printf("ENTRY emergency boot manually...\n");
+		emergency_boot = EMC_MAN_RECOVERY;
+	}
 
 	return abort;
 }
@@ -422,6 +459,7 @@ void autoboot_command(const char *s)
 		disable_ctrlc(prev);	/* restore Control C checking */
 #endif
 	}
+	__emergency();
 
 
 #ifdef CONFIG_MENUKEY
