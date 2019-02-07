@@ -5,6 +5,7 @@
  */
 
 #include <common.h>
+#include <autoboot.h>
 #include <environment.h>
 
 DECLARE_GLOBAL_DATA_PTR;
@@ -184,6 +185,9 @@ int env_load(void)
 {
 	struct env_driver *drv;
 	int prio;
+
+	/* ROY: add GPIO-reset default hw-version compact here */
+	emc_check_hw_support();
 
 	for (prio = 0; (drv = env_driver_lookup(ENVOP_LOAD, prio)); prio++) {
 		int ret;

@@ -11,6 +11,9 @@
 #ifndef __AUTOBOOT_H
 #define __AUTOBOOT_H
 
+void emc_check_hw_support(void);
+void qpt_leds_blink(int i);
+
 #ifdef CONFIG_AUTOBOOT
 /**
  * bootdelay_process() - process the bootd delay

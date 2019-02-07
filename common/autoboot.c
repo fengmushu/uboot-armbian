@@ -28,64 +28,90 @@ DECLARE_GLOBAL_DATA_PTR;
 
 /* Stored value of bootdelay, used by autoboot_command() */
 static int stored_bootdelay;
+
 #define GPIO_RESET_KEY "PL3"
+
 typedef enum {
-	EMC_NORMAL_BOOT = 0,
-	EMC_KEY_PRESSED,
-	EMC_SOFT_RECOVERY,
-	EMC_MAN_RECOVERY,
+	EMC_RST_NOT_SUPPORTED = -1, 	//hw not supported
+	EMC_NORMAL_BOOT = 0, 			//normal boot to system
+	EMC_KEY_PRESSED, 		//reset key pressed
+	EMC_SOFT_RECOVERY, 		//file flags touched
+	EMC_CONS_RECOVERY, 		//console key input
 } emergency_t;
-static emergency_t emergency_boot = EMC_NORMAL_BOOT;
 
-static int __mmc_recovery_flag(void)
-{
-	int n = file_exists("mmc", "1:3", "/.auto_recovery", FS_TYPE_ANY);
-	if(n>=0) {
-		return n;
-	}
-	return 0;
-}
+static emergency_t emergency_boot = EMC_RST_NOT_SUPPORTED;
 
-static int __emergency_trigger(void)
+static int __emc_key_read(void)
 {
 	int n;
 	unsigned int gpio;
 
-	if(emergency_boot)
-		return emergency_boot;
-
-	if(__mmc_recovery_flag()) {
-		emergency_boot = EMC_SOFT_RECOVERY;
-		printf("%s: found mmc boot recovery flags\n", __FUNCTION__);
-		return emergency_boot;
-	}
-
 	n = gpio_lookup_name(GPIO_RESET_KEY, NULL, NULL, &gpio);
 	if(n) {
 		printf("%s: GPIO not found %s\n", __FUNCTION__, GPIO_RESET_KEY);
-		return 0;
+		return -1;
 	}
 
 	n = gpio_request(gpio, "boot-emergency");
 	if(n<0) {
 		printf("%s: request %s failed\n", __FUNCTION__, GPIO_RESET_KEY);
-		return 0;
+		return -1;
 	}
 
+	//set dir input
 	gpio_direction_input(gpio);
+
+	//get value
 	n =	gpio_get_value(gpio); //PL3
-	if(n >= 0) { // PRESSED = 0
+
+	gpio_free(gpio);
+	return n;
+}
+
+/*
+* HW version: 1.0, the PL3 default 0, and none key layout.
+* HW version: 1.1, the PL3 default 1, and RESET key attached.
+*/
+void emc_check_hw_support(void)
+{
+	if(__emc_key_read() > 0) {
+		/* only hw version >= 1.1 , RESET key supported and default = 1 */
+		emergency_boot = EMC_NORMAL_BOOT;
+		printf("%s: hw emergency boot supported.\n", __FUNCTION__);
+	}
+	return;
+}
+
+static void __mmc_recovery_flag(void)
+{
+	int n = file_exists("mmc", "1:3", "/.auto_recovery", FS_TYPE_ANY);
+	if(n>0) {
+		emergency_boot = EMC_SOFT_RECOVERY;
+		printf("%s: found mmc boot recovery flags\n", __FUNCTION__);
+	}
+}
+
+/* called many time as boot */
+static void __emergency_trigger(void)
+{
+	int n;
+
+	if(emergency_boot != EMC_NORMAL_BOOT)
+		return;
+
+	/* check hw reset key status */
+	n = __emc_key_read();
+	if(n >= 0) {
+		/* default: 1, PRESSED = 0 */
 		emergency_boot = (!n ? EMC_KEY_PRESSED : EMC_NORMAL_BOOT);
 	}
 
-	if(emergency_boot)
+	if(emergency_boot > EMC_NORMAL_BOOT)
 		printf("%s: key pressed %d\n", __FUNCTION__, emergency_boot);
-
-	gpio_free(gpio);
-	return emergency_boot;
+	return;
 }
 
-static int __emergency(void)
+static void __emergency(void)
 {
 	char buff[128];
 
@@ -93,8 +119,8 @@ static int __emergency(void)
 	* check gpio key status
 	*/
 	printf("%s: check if emergency.\n", __FUNCTION__);
-	if(emergency_boot == EMC_NORMAL_BOOT) {
-		return 0;
+	if(emergency_boot <= EMC_NORMAL_BOOT) {
+		return;
 	}
 
 	/*
@@ -123,7 +149,9 @@ static int __emergency(void)
 						"mmc read ${scriptaddr} 0x0900 0x100 && " \
 						"mmc read ${ramdisk_addr_r} 0x8000 0xd000 && " \
 						"mmc read ${kernel_addr_r} 0x1000 0x7000");
-	return 1;
+
+	env_set("gogo", "run emergency_boot && source ${scriptaddr}");
+	return;
 }
 
 #if defined(CONFIG_AUTOBOOT_KEYED)
@@ -200,6 +228,7 @@ static int passwd_abort(uint64_t etime)
 #else
 static int passwd_abort(uint64_t etime)
 {
+	int blink = 0;
 	int abort = 0;
 	struct {
 		char *str;
@@ -270,6 +299,8 @@ static int passwd_abort(uint64_t etime)
 				abort = 1;
 			}
 		}
+		qpt_leds_blink(++blink / 2000);
+		__emergency_trigger();
 	} while (!abort && get_ticks() <= etime);
 
 	return abort;
@@ -292,7 +323,6 @@ static int __abortboot(int bootdelay)
 	 */
 	printf(CONFIG_AUTOBOOT_PROMPT, bootdelay);
 #  endif
-	__emergency_trigger();
 
 	abort = passwd_abort(etime);
 	if (!abort)
@@ -368,7 +398,7 @@ static int abortboot(int bootdelay)
 
 	if(abort) {
 		printf("ENTRY emergency boot manually...\n");
-		emergency_boot = EMC_MAN_RECOVERY;
+		emergency_boot = EMC_CONS_RECOVERY;
 	}
 
 	return abort;
@@ -446,6 +476,9 @@ const char *bootdelay_process(void)
 void autoboot_command(const char *s)
 {
 	debug("### main_loop: bootcmd=\"%s\"\n", s ? s : "<UNDEFINED>");
+
+	/* check filesystem flags */
+	__mmc_recovery_flag();
 
 	if (stored_bootdelay != -1 && s && !abortboot(stored_bootdelay)) {
 		__emergency();
