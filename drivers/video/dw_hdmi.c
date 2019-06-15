@@ -140,7 +140,7 @@ static void hdmi_audio_set_samplerate(struct dw_hdmi *hdmi, u32 pixel_clk)
 
 	index = hdmi_lookup_n_cts(pixel_clk);
 	if (index == -1) {
-		debug("audio not supported for pixel clk %d\n", pixel_clk);
+		printf("audio not supported for pixel clk %d\n", pixel_clk);
 		return;
 	}
 
@@ -645,7 +645,7 @@ int dw_hdmi_phy_cfg(struct dw_hdmi *hdmi, uint mpixelclock)
 
 		ret = hdmi_phy_configure(hdmi, mpixelclock);
 		if (ret) {
-			debug("hdmi phy config failure %d\n", ret);
+			printf("hdmi phy config failure %d\n", ret);
 			return ret;
 		}
 	}
@@ -690,20 +690,21 @@ int dw_hdmi_read_edid(struct dw_hdmi *hdmi, u8 *buf, int buf_size)
 	u32 edid_size = HDMI_EDID_BLOCK_SIZE;
 	int ret;
 
-	if (0) {
+	ret = hdmi_read_edid(hdmi, 0, buf);
+	if (ret) {
+		printf("%s: Failed to read edid.\n", __func__);
+		return -1;
+	}
+
+	if (buf[0x7e] != 0) {
+		hdmi_read_edid(hdmi, 1, buf + HDMI_EDID_BLOCK_SIZE);
+		edid_size += HDMI_EDID_BLOCK_SIZE;
+	}
+
+	if(edid_check_info((struct edid1_info *)buf)) {
 		edid_size = sizeof(pre_buf);
 		memcpy(buf, pre_buf, edid_size);
-	} else {
-		ret = hdmi_read_edid(hdmi, 0, buf);
-		if (ret) {
-			printf("%s: Failed to read edid.\n", __func__);
-			return -1;
-		}
-
-		if (buf[0x7e] != 0) {
-			hdmi_read_edid(hdmi, 1, buf + HDMI_EDID_BLOCK_SIZE);
-			edid_size += HDMI_EDID_BLOCK_SIZE;
-		}
+		printf("%s: Failed to read EDID, use default\n", __func__);
 	}
 
 	edid_print_info((struct edid1_info *)buf);
@@ -714,7 +715,7 @@ int dw_hdmi_enable(struct dw_hdmi *hdmi, const struct display_timing *edid)
 {
 	int ret;
 
-	debug("%s, mode info : clock %d hdis %d vdis %d\n",
+	printf("%s, mode info : clock %d hdis %d vdis %d\n",
 	      edid->hdmi_monitor ? "hdmi" : "dvi",
 	      edid->pixelclock.typ, edid->hactive.typ, edid->vactive.typ);
 

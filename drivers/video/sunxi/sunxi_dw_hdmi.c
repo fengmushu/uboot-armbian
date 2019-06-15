@@ -350,8 +350,9 @@ static int sunxi_dw_hdmi_probe(struct udevice *dev)
 
 	ret = sunxi_dw_hdmi_wait_for_hpd();
 	if (ret < 0) {
-		debug("hdmi can not get hpd signal\n");
-		return -1;
+		printf("hdmi can not get hpd signal, ignorance\n");
+		/* KEN: shit~!, if return err, the hdmi will not inited */
+		// return -1;
 	}
 
 	priv->hdmi.ioaddr = SUNXI_HDMI_BASE;

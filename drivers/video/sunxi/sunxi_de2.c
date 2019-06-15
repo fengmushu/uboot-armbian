@@ -186,9 +186,9 @@ static int sunxi_de2_init(struct udevice *dev, ulong fbbase,
 	int ret;
 
 	disp_uc_plat = dev_get_uclass_platdata(disp);
-	debug("Using device '%s', disp_uc_priv=%p\n", disp->name, disp_uc_plat);
+	printf("Using device '%s', disp_uc_priv=%p\n", disp->name, disp_uc_plat);
 	if (display_in_use(disp)) {
-		debug("   - device in use\n");
+		printf("   - device in use\n");
 		return -EBUSY;
 	}
 
@@ -196,14 +196,14 @@ static int sunxi_de2_init(struct udevice *dev, ulong fbbase,
 
 	ret = device_probe(disp);
 	if (ret) {
-		debug("%s: device '%s' display won't probe (ret=%d)\n",
+		printf("%s: device '%s' display won't probe (ret=%d)\n",
 		      __func__, dev->name, ret);
 		return ret;
 	}
 
 	ret = display_read_timing(disp, &timing);
 	if (ret) {
-		debug("%s: Failed to read timings\n", __func__);
+		printf("%s: Failed to read timings\n", __func__);
 		return ret;
 	}
 
@@ -212,14 +212,14 @@ static int sunxi_de2_init(struct udevice *dev, ulong fbbase,
 
 	ret = display_enable(disp, 1 << l2bpp, &timing);
 	if (ret) {
-		debug("%s: Failed to enable display\n", __func__);
+		printf("%s: Failed to enable display\n", __func__);
 		return ret;
 	}
 
 	uc_priv->xsize = timing.hactive.typ;
 	uc_priv->ysize = timing.vactive.typ;
 	uc_priv->bpix = l2bpp;
-	debug("fb=%lx, size=%d %d\n", fbbase, uc_priv->xsize, uc_priv->ysize);
+	printf("fb=%lx, size=%d %d\n", fbbase, uc_priv->xsize, uc_priv->ysize);
 
 	return 0;
 }
@@ -234,6 +234,8 @@ static int sunxi_de2_probe(struct udevice *dev)
 	if (!(gd->flags & GD_FLG_RELOC))
 		return 0;
 
+/* KEN: no lcd connected */
+#if 0
 	ret = uclass_find_device_by_name(UCLASS_DISPLAY,
 					 "sunxi_lcd", &disp);
 	if (!ret) {
@@ -250,6 +252,7 @@ static int sunxi_de2_probe(struct udevice *dev)
 	}
 
 	debug("%s: lcd display not found (ret=%d)\n", __func__, ret);
+#endif
 
 	ret = uclass_find_device_by_name(UCLASS_DISPLAY,
 					 "sunxi_dw_hdmi", &disp);
@@ -270,12 +273,15 @@ static int sunxi_de2_probe(struct udevice *dev)
 
 	debug("%s: hdmi display not found (ret=%d)\n", __func__, ret);
 
+/* KEN: no tv connected */
+#if 0
 	ret = uclass_find_device_by_name(UCLASS_DISPLAY,
 					"sunxi_tve", &disp);
 	if (ret) {
 		debug("%s: tv not found (ret=%d)\n", __func__, ret);
 		return ret;
 	}
+#endif
 
 	ret = sunxi_de2_init(dev, plat->base, VIDEO_BPP32, disp, 1, true);
 	if (ret)
@@ -326,7 +332,7 @@ int sunxi_simplefb_setup(void *blob)
 	u64 start, size;
 	const char *pipeline = NULL;
 
-	debug("Setting up simplefb\n");
+	printf("Setting up simplefb\n");
 
 	if (IS_ENABLED(CONFIG_MACH_SUNXI_H3_H5))
 		mux = 0;
@@ -337,34 +343,34 @@ int sunxi_simplefb_setup(void *blob)
 	ret = uclass_find_device_by_name(UCLASS_VIDEO,
 					 "sunxi_de2", &de2);
 	if (ret) {
-		debug("DE2 not present\n");
+		printf("DE2 not present\n");
 		return 0;
 	}
 
 	ret = uclass_find_device_by_name(UCLASS_DISPLAY,
 					 "sunxi_dw_hdmi", &hdmi);
 	if (ret) {
-		debug("HDMI not present\n");
+		printf("HDMI not present\n");
 	} else if (device_active(hdmi)) {
 		if (mux == 0)
 			pipeline = "mixer0-lcd0-hdmi";
 		else
 			pipeline = "mixer1-lcd1-hdmi";
 	} else {
-		debug("HDMI present but not probed\n");
+		printf("HDMI present but not probed\n");
 	}
 
 	ret = uclass_find_device_by_name(UCLASS_DISPLAY,
 					 "sunxi_lcd", &lcd);
 	if (ret)
-		debug("LCD not present\n");
+		printf("LCD not present\n");
 	else if (device_active(lcd))
 		pipeline = "mixer0-lcd0";
 	else
-		debug("LCD present but not probed\n");
+		printf("LCD present but not probed\n");
 
 	if (!pipeline) {
-		debug("No active display present\n");
+		printf("No active display present\n");
 		return 0;
 	}
 
