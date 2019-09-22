@@ -32,6 +32,12 @@ int init_func_watchdog_reset(void);
 #  error "Configuration error: CONFIG_HW_WATCHDOG and CONFIG_WATCHDOG can't be used together."
 #endif
 
+/* SPL no watchdog */
+#ifdef CONFIG_SPL_BUILD
+	#define WATCHDOG_RESET() {}
+	#define WATCHDOG_STOP() {}
+#else /* SPL */
+
 /*
  * Hardware watchdog
  */
@@ -40,8 +46,10 @@ int init_func_watchdog_reset(void);
 		#define WATCHDOG_RESET bl hw_watchdog_reset
 	#else
 		extern void hw_watchdog_reset(void);
+		extern void hw_watchdog_stop(void);
 
 		#define WATCHDOG_RESET hw_watchdog_reset
+		#define WATCHDOG_STOP hw_watchdog_stop
 	#endif /* __ASSEMBLY__ */
 #else
 	/*
@@ -66,6 +74,8 @@ int init_func_watchdog_reset(void);
 		#endif /* __ASSEMBLY__ */
 	#endif /* CONFIG_WATCHDOG && !__ASSEMBLY__ */
 #endif /* CONFIG_HW_WATCHDOG */
+
+#endif /* SPL */
 
 /*
  * Prototypes from $(CPU)/cpu.c.

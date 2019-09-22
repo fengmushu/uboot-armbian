@@ -15,6 +15,7 @@
 #include <u-boot/sha256.h>
 #include <asm/gpio.h>
 #include <fs.h>
+#include <watchdog.h>
 
 DECLARE_GLOBAL_DATA_PTR;
 
@@ -398,6 +399,7 @@ static int abortboot(int bootdelay)
 
 	if(abort) {
 		printf("ENTRY emergency boot manually...\n");
+		WATCHDOG_STOP();
 		emergency_boot = EMC_CONS_RECOVERY;
 	}
 
