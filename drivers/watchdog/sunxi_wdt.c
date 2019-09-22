@@ -54,7 +54,7 @@ void hw_watchdog_stop(void)
 static void sunxi_wdt_start(unsigned int sec)
 {
 	writel(0x1, SUNXI_WDT_CONF);
-	writel(0x80, SUNXI_WDT_MODE); //10s
+	writel(0xb0, SUNXI_WDT_MODE);
 	writel((readl(SUNXI_WDT_MODE) | 0x01), SUNXI_WDT_MODE); //start
 }
 
@@ -63,7 +63,7 @@ void hw_watchdog_init(void)
 {
 	printf("sunxi hw-watchdog init...\n");
 
-	sunxi_wdt_start(10);
+	sunxi_wdt_start(0);
 }
 
 void hw_watchdog_reset(void)
